@@ -1,0 +1,7 @@
+Po każdej większej zmianie wykonujesz:
+
+git add .
+git commit -m "Opis zmian"
+git push
+
+To jest standardowy workflow.

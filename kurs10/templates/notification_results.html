@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>HOTEL WARSAW 101</title>
+        <meta charset="utf8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        <h1>Notification from guest of hotel</h1>
+        <p>Room number={{room_number}} user guest name={{guest_name}} notification={{Notification}}</p>
+        {%if priority_info.code!='unknown'%}
+            <p>Your priority is: {{priority_info.description}}</p>
+        {%else%}
+            <p>{{priority_info.code}} is unknown</p>
+        {%endif%}
+    </body>
+</html>

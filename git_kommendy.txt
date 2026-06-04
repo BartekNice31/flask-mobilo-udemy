@@ -1,0 +1,18 @@
+git config --global user.name "BartekNice31"
+git config --global user.email "bartlomiej.nicewicz1993@gmail.com"
+
+git config --global --list
+
+git remote add origin https://github.com/BartekNice31/flask-mobilo-udemy.git
+git branch -M main
+git push -u origin main
+#najpierw: 
+git init
+
+#to wystarczy 
+git add .
+git commit -m "Pierwszy commit"
+git push --force origin main 
+
+
+https://chatgpt.com/share/6a1c2661-d640-83eb-a93e-4035b1fe1901

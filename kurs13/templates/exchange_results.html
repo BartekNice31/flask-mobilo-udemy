@@ -1,0 +1,12 @@
+{%extends "base.html"%}
+{%block body_header%}
+    You have selected currency: {{currency}} and amount: {{amount}}
+{%endblock%}
+{%block body_content%} 
+    {{super()}}
+    {%if currency_info.code!='uknown'%}
+        <img src="{{url_for('static',filename=currency_info.flag)}}">
+    {%else%}
+        <p>This currency currency_info.code is unknown for us</p>
+    {%endif%}         
+{%endblock%}

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>HOTEL WARSAW 101</title>
+        <meta charset="utf8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        <form id="notification_form" action="{{url_for("notification")}}" method="POST">
+            <label for="Room_number">Room Number</label>
+            <input type="text" value="room_number" id="room_number"><br>
+            <label for="Guest_name">Guest Name</label>
+            <input type="text" value="guest_name" id="guest_name"><br>
+            <label for="Notification">Notification</label>
+            <input type="text" value="Notification" id="Notification"><br>
+            <input type="submit" value="SEND YOUR NOTIFICATION">
+        </form>
+    </body>
+</html>

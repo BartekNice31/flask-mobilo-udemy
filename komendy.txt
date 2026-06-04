@@ -1,0 +1,8 @@
+.\venv\scripts\activate
+
+& .\venv\Scripts\activate.bat #niedziała
+& "C:\Users\Bartłomiej\Desktop\python\flask mobilo udemy\venv\Scripts\activate.bat"#niedziała
+
+"C:\Users\Bartłomiej\Desktop\python\flask mobilo udemy\venv\Scripts\activate.bat"
+
+copy "C:\Users\Bartłomiej\Desktop\python\flask mobilo udemy\kurs7\app.py" "C:\Users\Bartłomiej\Desktop\python\flask mobilo udemy\kurs8\"

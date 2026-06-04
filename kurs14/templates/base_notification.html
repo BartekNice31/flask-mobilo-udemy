@@ -1,0 +1,22 @@
+{%from "macros_notification.html" import show_flash_message, show_all_flash_message%}
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>HOTEL WARSAW 101</title>
+        <meta charset="utf8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        {%include "menu_notification.html"%}
+        {%include "footer.html"%}
+        {{show_all_flash_message()}}
+        <h1>
+            {%block body_header%}
+
+            {%endblock%}
+        </h1> 
+        {%block body_content%}
+        <HR>
+        {%endblock%}
+    </body>
+</html>
