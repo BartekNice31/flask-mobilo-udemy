@@ -1,7 +1,7 @@
 class Author:
     def __init__(self
-                ,firstname
-                ,lastname
+                ,firstname:str="BARTLOMIEJ"
+                ,lastname:str="NICEWICZ"
                 ,age:int=33):
         self.firstname=firstname
         self.lastname=lastname
