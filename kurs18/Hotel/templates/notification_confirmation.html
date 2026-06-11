@@ -1,0 +1,34 @@
+<div class="container px-4">
+        <div class="row mb-3">
+            <div class="col-12">
+                <h2>
+                    {% if priority_type.code=='high' %}
+                        Critical notification content
+                    {% elif priority_type.code=='medium' %}
+                        Important notification content
+                    {% else %}
+                        Notification content
+                    {% endif %}
+                </h2>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-3"><label for="room_number" class="form-label">Room number</label></div>
+            <div class="col-6"><input type="text" name="room_number" id="room_number" class="form-control"  value="{{ room_number }}" readonly></div>
+            <div class="col-3"></div>
+  </div>
+        <div class="row mb-3">
+            <div class="col-3"><label for="guest_name" class="form-label">Guest name</label></div>
+            <div class="col-6"><input type="text" name="guest_name" id="guest_name" class="form-control" value="{{ guest_name }}" readonly></div>
+            <div class="col-3"></div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-3"><label for="notification_text" class="form-label">Notification</label></div>
+            <div class="col-6">
+                <textarea rows="4" cols="50" name="notification_text" class="form-control">
+                    {{ notification_text }}
+                </textarea>
+            </div>
+            <div class="col-3"></div>
+        </div>         
+    </div>

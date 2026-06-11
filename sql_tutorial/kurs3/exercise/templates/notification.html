@@ -1,0 +1,48 @@
+ 
+<form id="notification_form" method="POST" action="{{ url_for('notification') }}"> 
+    <div class="container px-4"> 
+        <div class="row mb-3"> 
+            <div class="col-12"><h2>Notify shift manager:</h2></div> 
+        </div> 
+        <div class="row mb-3"> 
+            <div class="col-3"><label for="room_number" class="form-label">Room 
+number</label></div> 
+            <div class="col-6"><input type="text" name="room_number" id="room_number" 
+class="form-control"></div> 
+            <div class="col-3"></div> 
+        </div> 
+        <div class="row mb-3"> 
+            <div class="col-3"><label for="guest_name" class="form-label">Guest 
+name</label></div> 
+            <div class="col-6"><input type="text" name="guest_name" id="guest_name" class="form
+control"></div> 
+            <div class="col-3"></div> 
+        </div> 
+        <div class="row mb-3"> 
+            <div class="col-3"><label for="notification_text" class="form
+label">Notification</label></div> 
+            <div class="col-6"><textarea rows="4" cols="50" name="notification_text" class="form
+control"></textarea></div> 
+            <div class="col-3"></div> 
+        </div>        
+        <div class="row mb-3"> 
+            <div class="col-3"><label for="priority" class="form-label">Priority</label></div> 
+            <div class="col-6"> 
+                <select name="priority" id="priority" class="form-select"> 
+                    {% for priority in list_of_priorities %} 
+                        <option value="{{ priority.code }}" {{ 'selected' if 
+priority.selected}}>{{ priority.description }}</option> 
+                    {% endfor %} 
+                </select> 
+            </div> 
+            <div class="col-3"></div> 
+        </div>   
+        <div class="row mb-3"> 
+            <div class="col-3"></div> 
+            <div class="col-6"><input type="submit" value="Send" class="btn btn-primary"></div> 
+            <div class="col-3"></div> 
+        </div>          
+    </div> 
+     
+</form> 
+ 

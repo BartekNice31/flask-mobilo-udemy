@@ -1,0 +1,5 @@
+create table notifications(id integer primary key autoincrement,room_number varchar(10), guest_name varchar(30), notification text,priority varchar(20), date_notification date not null default(date()));
+
+sqlite3 nazwa_bazy.db
+.table
+.quit

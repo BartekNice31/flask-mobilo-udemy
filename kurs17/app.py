@@ -1,5 +1,4 @@
-from flask import Flask,render_template,flash,url_for
-from flask_bootstrap import Bootstrap
+from flask import Flask,render_template,flash,url_for 
 from datetime import datetime
 import os
 import sys

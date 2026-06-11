@@ -1,0 +1,18 @@
+<ul class="nav nav-pills"> 
+<li class="nav-item"> 
+<a class="nav-link {{ 'active' if active_menu=='index' }}" aria-current="page" href="{{ 
+url_for('index') }}">Home</a> 
+</li> 
+<li class="nav-item"> 
+<a class="nav-link {{ 'active' if active_menu=='notifications' }}" href="{{ 
+url_for('notifications') }}">Notifications</a> 
+</li> 
+<li class="nav-item"> 
+<a class="nav-link {{ 'active' if active_menu=='notification' }}" href="{{ 
+url_for('notification') }}">New notification</a> 
+</li> 
+<li class="nav-item"> 
+<a class="nav-link {{ 'active' if active_menu=='about' }}" href="{{ url_for('about') }}" 
+tabindex="-1">About this app</a> 
+</li> 
+</ul> 
