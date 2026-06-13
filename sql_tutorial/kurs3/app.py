@@ -311,11 +311,17 @@ def edit_transaction(transaction_id:int):
 @app.route("/users")
 def users():
     db=get_db()
-    sql_statement='select *from users'
+    sql_statement='select id,name,email,is_active,is_admin from users'
     responses=db.execute(sql_statement).fetchall()
     for response in responses:
-        print(dict(response))
-    return "not implemented"    
+        print(f"User id: {response['id']}")
+        print(f"User name: {response['name']}")
+        print(f"User email: {response['email']}")
+        print(f"User is_active: {response['is_active']}")
+        print(f"User is_admin: {response['is_admin']}")
+        print('-'*30)
+    users=db.execute(sql_statement).fetchall()
+    return render_template('users.html',active_menu='users',users=users)  
 
 @app.route("/user_status_change/<action>/<user_name>")
 def user_status_change(action,user_name):
@@ -327,16 +333,63 @@ def edit_user(user_name):
 
 @app.route("/delete_user/<user_name>")
 def delete_user(user_name):
-    return "not implented"
+    if not 'user' in session:
+        return redirect("login")
+    login=session['user']
+    db=get_db()
+    sql_command="delete from users where name=? and name<>?"
+    db.execute(sql_command,[user_name,login])
+    db.commit()
+    return redirect(url_for("users"))
     
 @app.route("/new_user",methods=["GET","POST"])
 def new_user():
     if not 'user' in session:
-        redirect(url_for("login"))
-    login=session['user']    
+        return redirect(url_for('login'))
+    login=session['user']
     db=get_db()
     message=None
     user={}
-    
+    if request.method=='GET':
+        return render_template('new_user.html',active_menu="users",user=user)
+    else:
+        user['user_name']='' if 'user_name' not in request.form else request.form['user_name']
+        user['email']='' if 'email' not in request.form else request.form['email']
+        user['user_pass']='' if 'user_pass' not in request.form else request.form['user_pass']
+        
+        sql_statement='select count(*) as cnt from users where user=?'
+        record=db.execute('select count(*) as cnt from users where name=?',[user['user_name']]).fetchone()
+        is_user_name_unique=(record['cnt']==0)
+        
+        sql_statement='select count(*) as cnt from users where email=?'
+        record=db.execute('select count(*) as cnt from users where email=?',[user['email']]).fetchone()
+        is_user_email_unique=(record['cnt']==0)
+        
+        is_correct=False
+        if user['user_name']=='':
+            message='user name can not be empty' 
+        elif user['user_pass']=='':
+            message='user password can not be empty' 
+        elif user['email']=='':
+            message='user email can not be empty' 
+        elif not is_user_name_unique:
+            message=f"user with name: {user['user_name']} exists"
+        elif not is_user_email_unique:
+            message=f"user with email: {user['email']} exists"
+            
+        if not message:
+            is_correct=True
+        if is_correct:
+            user_pass=UserPass(user=user['user_name'],password=user['user_pass'])
+            password_hash=user_pass.hash_password()
+            sql_command="insert into users (name,email,password,is_active,is_admin) \
+                values(?,?,?,True,False)"
+            db.execute(sql_command,[user['user_name'],user['email'],password_hash])
+            db.commit()
+            flash(f"User: {user['user_name']} has been created")
+            return redirect(url_for('users'))
+        else:
+            flash(f"Correct an error: {message}")
+            return render_template('new_user.html',active_menu='users',user=user)
 if __name__=="__main__":
     app.run(port=5003)

@@ -301,7 +301,7 @@ def user_status_change(action,user_name):
 @app.route("/edit_user/<user_name>",methods=["GET","POST"])
 def edit_user(user_name):
     db=get_db()
-    response=db.execute('select *from users where user=?',[user_name]).fetchone()
+    response=db.execute('select *from users where name=?',[user_name]).fetchone()
     if response is not None:
         print("Deleting from database users: {}".format(user_name))
     else:
@@ -311,8 +311,47 @@ def edit_user(user_name):
 @app.route("/new_user",methods=["GET","POST"])
 def new_user():
     if not 'user' in session:
-        redirect(url_for("login")) 
-    login=session['user'] 
-
+        return redirect(url_for("login"))
+    db=get_db()
+    user={}
+    message=None
+    if request.method=="GET":
+        return render_template('new_user.html',active_menu='users',user=user)
+    else:
+        user['user_name']='' if not 'user_name' in request.form else request.form['user_name']
+        user['email']='' if not 'email' in request.form else request.form['email']
+        user['user_pass']='' if not 'user_pass' in request.form else request.form['user_pass']
+        
+        sql_statement_unique_name='select count(*) as cnt from users where name=?'
+        record=db.execute(sql_statement_unique_name,[user['user_name']]).fetchone()
+        is_name_unique=(record['cnt']==0)
+        
+        sql_statement_unique_email='select count(*) as cnt from users where email=?'
+        record=db.execute(sql_statement_unique_email,[user['email']]).fetchone()
+        is_email_unique=(record['cnt']==0)
+        
+        if user['user_name']=='':
+            message='user name can not be empty'
+        if user['user_pass']=='':
+            message='user password can not be empty'
+        if user['email']=='':
+            message='user email can not be empty'
+        elif not is_name_unique:
+            message=f"user with name={user['user_name']} exists"
+        elif not is_email_unique:
+            message=f"user with email={user['email']} exists" 
+        if not message:
+            user_pass=UserPass(user=user['user_name'],password=user['user_pass'])
+            hash_password=user_pass.hash_password()
+            sql_command=f"insert into users(name,email,password,is_active,is_admin) \
+                values(?,?,?,True,False)"
+            db.execute(sql_command,[user['user_name'],user['email'],hash_password])
+            db.commit()
+            flash(f"User={user['user_name']} has been created!")
+            return redirect(url_for('users'))
+        else:
+            flash(f"Please, correct an error: {message}")
+            return render_template('new_user.html',active_menu='users',user=user)
+            
 if __name__=="__main__":
     app.run(port=5004)
