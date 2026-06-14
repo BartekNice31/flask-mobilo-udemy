@@ -9,13 +9,16 @@
         <li class="nav-item">
           <a class="nav-link {{'active' if active_menu=='home'}}" aria-current="page" href="{{url_for('index')}}">Home</a>
         </li>
+        {%if login.is_valid%}
         <li class="nav-item">
           <a class="nav-link  {{'active' if active_menu=='exchange'}}""  href="{{url_for('exchange')}}">Exchange</a>
         </li>
+        {%endif%}
+        {%if login.is_valid%}
         <li class="nav-item">
           <a class="nav-link  {{'active' if active_menu=='history'}}"" href="{{url_for('history')}}">History</a>
         </li>
-        
+        {%endif%}
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             Dropdown
@@ -30,7 +33,7 @@
         <li class="nav-item">
           <a class="nav-link disabled" aria-disabled="true">About</a>
         </li>
-        
+        {%if login.is_valid and login.is_admin%}
         <li class="nav-item dropdown">
             <a
                 class="nav-link dropdown-toggle"
@@ -66,7 +69,8 @@
                 </li>
             </ul>
         </li>
-
+        {%endif%}
+        {%if not login.is_valid%}
         <li class="nav-item">
             <a
                 class="nav-link {{ 'active' if active_menu == 'login' }}"
@@ -76,7 +80,8 @@
                 Login
             </a>
         </li>
-
+        {%endif%}
+        {%if login.is_valid%}
         <li class="nav-item">
             <a
                 class="nav-link {{ 'active' if active_menu == 'logout' }}"
@@ -86,6 +91,7 @@
                 Logout {{ session['user'] if 'user' in session }}
             </a>
         </li>
+        {%endif%}
       </ul>
       <form class="d-flex" role="search">
         <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search"/>

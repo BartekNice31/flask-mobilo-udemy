@@ -9,12 +9,12 @@ import random
 import string
 import binascii 
 
-app=Flask(__name__) 
+app=Flask(__name__) #
 app.config["SECRET_KEY"]="123goniszty"
-# path_cantor_db=r"C:\Users\barte\Desktop\python projekty\flask-mobilo-udemy-main\sql_tutorial\data\cantor.db"
-# path_notifications_db=r"C:\Users\barte\Desktop\python projekty\flask-mobilo-udemy-main\sql_tutorial\data\notifications.db"
-path_cantor_db=r"C:\Users\Bartłomiej\Desktop\python\flask-mobilo-udemy-main\sql_tutorial\data\cantor.db"
-path_notifications_db=r"C:\Users\Bartłomiej\Desktop\python\flask-mobilo-udemy-main\sql_tutorial\data\notifications.db"
+path_cantor_db=r"C:\Users\barte\Desktop\python projekty\flask-mobilo-udemy-main\sql_tutorial\data\cantor.db"
+path_notifications_db=r"C:\Users\barte\Desktop\python projekty\flask-mobilo-udemy-main\sql_tutorial\data\notifications.db"
+# path_cantor_db=r"C:\Users\Bartłomiej\Desktop\python\flask-mobilo-udemy-main\sql_tutorial\data\cantor.db"
+# path_notifications_db=r"C:\Users\Bartłomiej\Desktop\python\flask-mobilo-udemy-main\sql_tutorial\data\notifications.db"
 app_info={'db_cantor':path_cantor_db
         ,'db_notifications':path_notifications_db}
 
@@ -34,6 +34,9 @@ class UserPass:
     def __init__(self,user='',password=''):
         self.user=user
         self.password=password
+        self.email=''
+        self.is_valid=False
+        self.is_admin=False
     def hash_password(self):
         """Hash a password for storing."""
         # the value generated using os.urandom(60)
@@ -88,7 +91,26 @@ class UserPass:
         else:
             self.user=None
             self.password=None
-            return None
+            return None 
+    def get_user_info(self):
+        db=get_db()
+        sql_statement='select name,email,is_active,is_admin from users where name=?'
+        cur=db.execute(sql_statement,[self.user])
+        db_user=cur.fetchone()
+        if db_user is None:
+            self.email=''
+            self.is_valid=False
+            self.is_admin=False
+        elif db_user['is_active']!=1:
+            self.email=db_user['email']
+            self.is_admin=False
+            self.is_valid=False
+        else:
+            self.is_valid=True
+            self.is_admin=db_user['is_admin']
+            self.email=db_user['email']
+
+
 #hec uzytkownik haslo PRH
 @app.route('/init_app')
 def init_app():
@@ -149,8 +171,10 @@ def init_app():
         
 @app.route("/login",methods=["GET","POST"])
 def login():
+    login=UserPass(session.get('user'))
+    login.get_user_info()
     if request.method=='GET':
-        return render_template('login.html',active_menu='login')
+        return render_template('login.html',active_menu='login',login=login)
     else:
         user_name='' if not 'user_name' in request.form else request.form['user_name']
         user_pass='' if not 'user_pass' in request.form else request.form['user_pass']
@@ -162,7 +186,7 @@ def login():
             return redirect(url_for('index'))
         else:
             flash('Failed log in, please try again')
-            return render_template('login.html')
+            return render_template('login.html',active_menu='login',login=login)
 
 @app.route("/logout")
 def logout():
@@ -173,6 +197,8 @@ def logout():
     
 @app.route('/') 
 def index(): 
+    login=UserPass(session.get('user'))
+    login.get_user_info()
     return render_template('index.html') 
 
 @app.route('/notification', methods=['GET', 'POST']) 
@@ -180,7 +206,10 @@ def notification():
 
     notification_priorities = NotificationPriorities() 
     notification_priorities.load_priorities() 
- 
+    login=UserPass(session.get('user'))
+    login.get_user_info()
+    if not login.is_valid:
+        return redirect(url_for('login'))
     if request.method == 'GET': 
         return render_template('notification.html',  
                             list_of_priorities=notification_priorities.list_of_priorities) 
@@ -280,33 +309,78 @@ def edit_notification(notification_id:int):
 def about(): 
     return render_template('about.html') 
 
+@app.route('/user_change_status/<action>/<user_name>')
+def user_status_change(action,user_name):
+    if not 'user' in session:
+        return redirect(url_for('login'))
+    login=session['user']
+    db=get_db()
+    if action=='active':
+        db.execute('update users set is_active=(is_active+1)%2 where name=? and name<>?'
+                ,[user_name,login])
+        db.commit()
+        flash("CHANGE USER STATUS")
+    elif action=='admin':
+        db.execute('update users set is_admin=(is_admin+1)%2 where name=? and name<>?'
+                   ,[user_name,login])
+        db.commit()
+        flash("CHANGE ADMIN STATUS")
+    return redirect(url_for('users'))
+
 @app.route("/users")
 def users():
     db=get_db()
     responses=db.execute('select *from users').fetchall()
     for r in responses:
         print(dict(r))
-    return "not implemented"
+    sql_statement='select id,name,email,password from users;'
+    users=db.execute(sql_statement).fetchall()
+    return render_template('users.html',users=users,active_menu='users')
 
-@app.route("/user_status_change/<action>/<user_name>")
-def user_status_change(action,user_name):
-    db=get_db()
-    sql_statement='select *from users where user=?'
-    response=db.execute(sql_statement,[user_name]).fetchone()
-    if response['user']==user_name:
-        print(f"Changing user about name={user_name} ")
-    else:
-        print(f"No found user about name={user_name}")
-    return "not implemented"
 @app.route("/edit_user/<user_name>",methods=["GET","POST"])
 def edit_user(user_name):
+    if not 'user' in session:
+        return redirect(url_for('login'))
     db=get_db()
-    response=db.execute('select *from users where name=?',[user_name]).fetchone()
-    if response is not None:
-        print("Deleting from database users: {}".format(user_name))
+    cur=db.execute('select name,email from users where name=?',[user_name])
+    user=cur.fetchone() 
+
+    if user is None:
+        flash(f'No such user: {user}')
+        return redirect(url_for('users'))
+    if request.method=='GET':
+        return render_template('edit_user.html',active_menu='users',user=user)
     else:
-        print("No founded user about name={}".format(user_name))
-    return "not implemented"
+        new_email='' if not request.form else request.form['email']
+        new_password='' if not request.form else request.form['user_pass']
+
+        if new_email!=user['email']:
+            db.execute('update users set email=? where name=?'
+                       ,[new_email,user_name])
+            db.commit()
+            flash('Email has been changed from {} to {}'.format(user['email'],new_email))
+        if new_password!='':
+            userPass=UserPass(user=user_name,password=new_password)
+            db.execute('update users set password=? where name=?',
+                       [userPass.hash_password(),user_name])
+            db.commit()
+            flash('Password has been changed')
+        return redirect(url_for('users'))
+@app.route("/delete_user/<user_name>",methods=["GET","POST"])
+def delete_user(user_name):
+    db=get_db()
+    if not 'user' in session:
+        return redirect(url_for('login'))
+    login=session['user']
+    sql_command='delete from users where name=? and name<>?'
+    
+    if login==user_name:
+        flash(f"CAN NOT TO DELETE ACTUALLY LOGGED IN USER:\n{login}")
+        return redirect(url_for('users'))
+    else:
+        db.execute(sql_command,[user_name,login])
+        db.commit()
+        return redirect(url_for('users'))
 
 @app.route("/new_user",methods=["GET","POST"])
 def new_user():

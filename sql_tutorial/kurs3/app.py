@@ -17,10 +17,10 @@ import binascii
 
 app=Flask(__name__) 
 app.config["SECRET_KEY"]="123goniszty"
-# path_cantor_db=r"C:\Users\barte\Desktop\python projekty\flask-mobilo-udemy-main\sql_tutorial\data\cantor.db"
-# path_notifications_db=r"C:\Users\barte\Desktop\python projekty\flask-mobilo-udemy-main\sql_tutorial\data\notifications.db"
-path_cantor_db=r"C:\Users\Bartłomiej\Desktop\python\flask-mobilo-udemy-main\sql_tutorial\data\cantor.db"
-path_notifications_db=r"C:\Users\Bartłomiej\Desktop\python\flask-mobilo-udemy-main\sql_tutorial\data\notifications.db"
+path_cantor_db=r"C:\Users\barte\Desktop\python projekty\flask-mobilo-udemy-main\sql_tutorial\data\cantor.db"
+path_notifications_db=r"C:\Users\barte\Desktop\python projekty\flask-mobilo-udemy-main\sql_tutorial\data\notifications.db"
+# path_cantor_db=r"C:\Users\Bartłomiej\Desktop\python\flask-mobilo-udemy-main\sql_tutorial\data\cantor.db"
+# path_notifications_db=r"C:\Users\Bartłomiej\Desktop\python\flask-mobilo-udemy-main\sql_tutorial\data\notifications.db"
 app_info={'db_cantor':path_cantor_db
         ,'db_notifications':path_notifications_db}
 
@@ -36,10 +36,23 @@ def close_db(error):
     if hasattr(g,'sqlite_db'):
         g.sqlite_db.close()
 
+class UserCurrency:
+    def __init__(self,user:str='',password:str='',list_currencies:list[str]=[]):
+        self.user=user
+        self.password=password
+        self.list_currencies=list_currencies
+    def hash_password(self):
+        """Hash a password for storing."""
+        salt = hashlib.sha256(os.urandom(60)).hexdigest().encode('ascii')
+        pwdhash = hashlib.pbkdf2_hmac('sha512', self.password.encode('utf-8'), salt, 100000)
+        pwdhash = binascii.hexlify(pwdhash)
+        return (salt + pwdhash).decode('ascii')
+
 class User:
     def __init__(self,user='',password=''):
         self.user=user
         self.password=password
+        
     def hash_password(self):
         """Hash a password for storing."""
         salt = hashlib.sha256(os.urandom(60)).hexdigest().encode('ascii')
@@ -51,6 +64,9 @@ class UserPass:
     def __init__(self,user='',password=''):
         self.user=user
         self.password=password
+        self.email=''
+        self.is_valid=False
+        self.is_admin=False
     def hash_password(self):
         """Hash a password for storing."""
         # the value generated using os.urandom(60)
@@ -106,6 +122,24 @@ class UserPass:
             self.user=None
             self.password=None
             return None
+    def get_user_info(self):
+        db=get_db()
+        sql_statement='select name,email,is_active,is_admin from users where name=?'
+        cur=db.execute(sql_statement,[self.user])
+        db_user=cur.fetchone()
+
+        if db_user is None:
+            self.email=''
+            self.is_valid=False
+            self.is_admin=False
+        elif db_user['is_active']!=1:
+            self.email=db_user['email']
+            self.is_valid=False
+            self.is_admin=False        
+        else:
+            self.email=db_user['email']
+            self.is_valid=True
+            self.is_admin=db_user['is_admin']
 
 @app.route('/init_app')
 def init_app():
@@ -164,12 +198,17 @@ def init_app():
 
     return redirect(url_for('index'))
 
-
-
 @app.route("/login",methods=["GET","POST"])
 def login():
+    login=UserPass(session.get('user'))
+    login.get_user_info() 
+    if login.is_valid and not login.is_valid:
+        flash("Logged as user")
+    if login.is_admin and login.is_valid:
+        flash("Logged as admin")
+
     if request.method=='GET':
-        return render_template('login.html',active_menu='login')
+        return render_template('login.html',active_menu='login',login=login)
     else:
         user_name='' if not 'user_name' in request.form else request.form['user_name']
         user_pass='' if not 'user_pass' in request.form else request.form['user_pass']
@@ -181,7 +220,7 @@ def login():
             return redirect(url_for('index'))
         else:
             flash('Failed log in, please try again')
-            return render_template('login.html')
+            return render_template('login.html',active_menu='login',login=login)
         
 @app.route("/logout")
 def logout():
@@ -192,16 +231,23 @@ def logout():
     
 @app.route("/")
 def index():
-    return render_template("index.html",time_now=datetime.now(),author=f"@{Author()}",active_menu='home')
+    login=UserPass(session.get('user'))
+    login.get_user_info()
+
+    return render_template("index.html",time_now=datetime.now()
+                           ,author=f"@{Author()}",active_menu='home',login=login)
 
 @app.route("/exchange",methods=["GET","POST"])
 def exchange():
     offer=CantorOffer()
     offer.load_offer()
-    
+    login=UserPass(session.get('user'))
+    login.get_user_info()
+    if not login.is_valid:
+        return redirect(url_for('login'))
     if request.method=="GET":
         
-        return render_template("exchange.html",offer=offer)
+        return render_template("exchange.html",offer=offer,login=login)
     else:
         flash("LOAD OFFER")
         flash("Debug starting exchange in POST mode")
@@ -232,20 +278,29 @@ def exchange():
                             ,active_menu='exchange'
                             ,currency=currency
                             ,amount=amount
-                            ,currency_info=offer.get_by_code(currency))
+                            ,currency_info=offer.get_by_code(currency)
+                            ,login=login)
 @app.route("/columns_grid")
 def columns_grid():
     return render_template("columns.html")
 @app.route("/history")
 def history():
+    login=UserPass(session.get('user'))
+    login.get_user_info()
+    if not login.is_valid:
+        return redirect(url_for('login'))
     db=get_db()
     query="select *from transactions"
     cur=db.execute(query)
     transactions=cur.fetchall()
-    return render_template("history.html",active='history',transactions=transactions)
+    return render_template("history.html",active='history',transactions=transactions,login=login)
 
 @app.route("/delete_transaction/<int:transaction_id>")
 def delete_transaction(transaction_id:int):
+    login=UserPass(session.get('user'))
+    login.get_user_info()
+    if not login.is_valid:
+        return redirect(url_for('login'))
     db=get_db()
     sql_statement="delete from transactions where id=?"
     db.execute(sql_statement,[transaction_id])
@@ -256,7 +311,10 @@ def delete_transaction(transaction_id:int):
 @app.route("/edit_transaction/<int:transaction_id>"
         ,methods=["GET","POST"])
 def edit_transaction(transaction_id:int):
-    
+    login=UserPass(session.get('user'))
+    login.get_user_info()
+    if not login.is_valid:
+        return redirect(url_for('login'))
     # currency=''
     # amount=''
     # user=''
@@ -276,7 +334,8 @@ def edit_transaction(transaction_id:int):
             return render_template('edit_transaction.html'
                                 ,transaction=transaction
                                 ,offer=offer
-                                ,active_menu='history')
+                                ,active_menu='history'
+                                ,login=login)
         # return render_template("exchange.html",offer=offer)
     else:
         flash("LOAD OFFER")
@@ -310,6 +369,14 @@ def edit_transaction(transaction_id:int):
 
 @app.route("/users")
 def users():
+    login=UserPass(session.get('user'))
+    login.get_user_info()
+    if not login.is_valid:
+        return redirect(url_for('login'))
+    if login.is_valid:
+        if not login.is_admin:
+            flash('Please,log as admin')
+            return redirect(url_for('login'))
     db=get_db()
     sql_statement='select id,name,email,is_active,is_admin from users'
     responses=db.execute(sql_statement).fetchall()
@@ -321,37 +388,122 @@ def users():
         print(f"User is_admin: {response['is_admin']}")
         print('-'*30)
     users=db.execute(sql_statement).fetchall()
-    return render_template('users.html',active_menu='users',users=users)  
+    return render_template('users.html',active_menu='users',users=users,login=login)  
 
 @app.route("/user_status_change/<action>/<user_name>")
-def user_status_change(action,user_name):
-    return "not implemented"
+def user_status_change(action,user_name): 
+    login=UserPass(session.get("user"))
+    login.get_user_info()
+    if not login.is_admin and not login.is_valid:
+        flash("Please, log as admin")
+        return redirect(url_for('login'))
+    db=get_db()
+    if action=='active':
+        db.execute('update users set is_active=(is_active+1)%2 where name=? and name<>?'
+                   ,[user_name,login.user])
+        print("change user status")
+        flash("change user status")
+        db.commit()
+    elif action=='admin':
+        print("Change admin status")
+        flash("Change admin status")
+        db.execute('update users set is_admin=(is_admin + 1) % 2 where name=? and name<>?'
+                   ,[user_name,login.user])
+        db.commit()
+    return redirect(url_for('users'))
 
-@app.route("/edit_user/<user_name>")
+@app.route("/edit_user/<user_name>",methods=["GET","POST"])
 def edit_user(user_name):
-    return "not implemented"
+    login=UserPass(session.get("user"))
+    login.get_user_info()
+    if not login.is_admin and not login.is_valid:
+        flash("Please, log as admin")
+        return redirect(url_for('login'))
+    db=get_db()
+    cur=db.execute('select name,email from users where name=?',[user_name])
+    user=cur.fetchone()
+    message=None
+    if user is None:
+        flash(f"no such user: {user_name}")
+    if request.method=='GET':
+        return render_template('edit_user.html',active_menu='users',user=user)
+    else:
+        login=session['user']
+        new_email='' if not 'email' in request.form else request.form['email']
+        new_password='' if not 'user_pass' in request.form else request.form['user_pass']
 
+        if new_email!=user['email']:
+            db.execute('update users set email=? where name=?',[new_email,user_name])
+            db.commit()
+            flash(f'Changing email to {new_email}')
+        if new_password!='':
+            userPass=UserPass(user=user_name,password=new_password)
+            db.execute('update users set password=? where name=?'
+                    ,[userPass.hash_password(),user_name])
+            db.commit()
+            flash('Password has been changed')
+        
+        # name_unique=db.execute('select count(*) as cnt from users where name=?'
+        #                        ,[user_name]).fetchone()==0
+        # email_unique=db.execute('select count(*) as cnt from users where email=?',
+        #                         [email]).fetchone()==0
+
+        # if name=='':
+        #     message='field name is empty'
+        # if email=='':
+        #     message='field email is empty'
+        # if user_name==login:
+        #     message=f'Can not change name to already logged in user: {user_name}'
+        # if not name_unique:
+        #     message=f'users name: {user_name} is not unique'
+        # if not email_unique:
+        #     message=f'users email: {email} is not unique'
+        # if message is None:
+        #     id_user=db.execute('select id from users where name=?',[user_name]).fetchone()
+        #     sql_command='update users set name=?,email=? where id=?'
+        #     db.execute(sql_command,[user_name,email,id_user])
+        #     db.commit()
+
+        #     return redirect(url_for('users'))
+        # else:
+        #     flash(message=message)
+        #     return redirect(url_for('users'))
+        return redirect(url_for('users'))
 @app.route("/delete_user/<user_name>")
 def delete_user(user_name):
-    if not 'user' in session:
-        return redirect("login")
-    login=session['user']
+    login=UserPass(session.get("user"))
+    if not login.is_admin and not login.is_valid:
+        flash("Please, log as admin")
+        return redirect(url_for('login'))
     db=get_db()
-    sql_command="delete from users where name=? and name<>?"
-    db.execute(sql_command,[user_name,login])
-    db.commit()
-    return redirect(url_for("users"))
+
+    is_admin=False
+    record=db.execute('select *from users where name=?',[user_name]).fetchone()
+    if record['is_admin']==1:
+        flash(f'Can not to remove admin user {user_name}')
+        return redirect(url_for("users"))
+    else:
+        if user_name==login:
+            flash(f'Can not to remove actually logged in user: {login}')
+            return redirect(url_for("users"))
+        else:
+            sql_command="delete from users where name=? and name<>?"
+            db.execute(sql_command,[user_name,login])
+            db.commit()
+        return redirect(url_for("users"))
     
 @app.route("/new_user",methods=["GET","POST"])
 def new_user():
-    if not 'user' in session:
+    login=UserPass(session.get("user"))
+    login.get_user_info()
+    if not login.is_admin and not login.is_valid:
+        flash("Please, log as admin")
         return redirect(url_for('login'))
-    login=session['user']
     db=get_db()
     message=None
     user={}
     if request.method=='GET':
-        return render_template('new_user.html',active_menu="users",user=user)
+        return render_template('new_user.html',active_menu="users",user=user,login=login)
     else:
         user['user_name']='' if 'user_name' not in request.form else request.form['user_name']
         user['email']='' if 'email' not in request.form else request.form['email']
@@ -390,6 +542,6 @@ def new_user():
             return redirect(url_for('users'))
         else:
             flash(f"Correct an error: {message}")
-            return render_template('new_user.html',active_menu='users',user=user)
+            return render_template('new_user.html',active_menu='users',user=user,login=login)
 if __name__=="__main__":
     app.run(port=5003)
