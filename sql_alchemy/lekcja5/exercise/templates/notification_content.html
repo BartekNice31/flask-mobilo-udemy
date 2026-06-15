@@ -1,0 +1,17 @@
+{%extends "base.html"%}
+{%block body_header%}
+
+{%endblock%}
+{%block body_content%}
+<h1>Notification from guest of hotel</h1>
+        <p>Room number={{room_number}} user guest name={{guest_name}} notification={{Notification}}</p>
+        <br>
+        {{show_all_flash_message()}}
+        <br>
+        {%if priority_info.code!='unknown'%}
+            <p>Your priority is: {{priority_info.description}}</p>
+        {%else%}
+            <p>{{priority_info.code}} is unknown</p>
+        {%endif%} 
+{%endblock%}  
+        

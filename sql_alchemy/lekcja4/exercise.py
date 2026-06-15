@@ -1,21 +1,35 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
-
+#app.app_context().push()
 app=Flask(__name__) 
 path_database_config=r"C:\Users\Bartłomiej\Desktop\python\flask-mobilo-udemy-main\sql_alchemy\config_exercise.cfg"  
+#path_database_config=r"C:\Users\barte\Desktop\python projekty\flask-mobilo-udemy-main\sql_alchemy\config_exercise.cfg"  
 app.config.from_pyfile(path_database_config)
 db=SQLAlchemy(app)
-#app.app_context().push()
+
 class Author(db.Model):
     id=db.Column(db.Integer,primary_key=True)
     name=db.Column(db.String(50))
     special=db.Column(db.Boolean)
     
+    art_works=db.relationship('ArtWork',backref='author',lazy='dynamic')
     def __repr__(self):
-        return f"Author: {self.id} {self.name} {self.special}"
+        return f"Author: {self.id}/{self.name}/{self.special}"
     def __str__(self):
-        return f"Author: {self.id} {self.name} {self.special}"
+        return f"Author: {self.id}/{self.name}/{self.special}"
+    
+class ArtWork(db.Model):
+    id=db.Column(db.Integer,primary_key=True)
+    name=db.Column(db.String(50))
+    author_id=db.Column(db.Integer,db.ForeignKey('author.id'))
+    
+    def __repr__(self):
+        return f"ArtWork {self.id}/{self.name}/{self.author_id}"
+    
+    def __str__(self):
+        return f"ArtWork {self.id}/{self.name}/{self.author_id}"
+    
 @app.route("/")
 def index():
     db.create_all()

@@ -1,64 +1,57 @@
 from flask import Flask,render_template,flash,url_for,request,flash,g,redirect,session
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
 from datetime import datetime
-import os
-import sys
-from author import Author
-from cantor_offer import CantorOffer
-import sqlite3
-
 import random
 import string
 import hashlib
 import binascii
-#from user import User,UserPass
 
-#wygenerowany przez ten dziwny kod użytkownik/hasło:
-#User igo with password qdz has been created
-
+#app.app_context().push()
 app=Flask(__name__) 
-app.config["SECRET_KEY"]="123goniszty"
-path_cantor_db=r"C:\Users\barte\Desktop\python projekty\flask-mobilo-udemy-main\sql_tutorial\data\cantor.db"
-path_notifications_db=r"C:\Users\barte\Desktop\python projekty\flask-mobilo-udemy-main\sql_tutorial\data\notifications.db"
-# path_cantor_db=r"C:\Users\Bartłomiej\Desktop\python\flask-mobilo-udemy-main\sql_tutorial\data\cantor.db"
-# path_notifications_db=r"C:\Users\Bartłomiej\Desktop\python\flask-mobilo-udemy-main\sql_tutorial\data\notifications.db"
-app_info={'db_cantor':path_cantor_db
-        ,'db_notifications':path_notifications_db}
+path_database_config=r"C:\Users\Bartłomiej\Desktop\python\flask-mobilo-udemy-main\sql_alchemy\config_cantor.cfg"  
+#path_database_config=r"C:\Users\barte\Desktop\python projekty\flask-mobilo-udemy-main\sql_alchemy\config_cantor.cfg"  
+app.config.from_pyfile(path_database_config)
+db=SQLAlchemy(app)
 
-def get_db():
-    if not hasattr(g,'sqlite_db'):
-        connection=sqlite3.connect(app_info["db_cantor"])
-        connection.row_factory=sqlite3.Row
-        g.sqlite_db=connection
-    return g.sqlite_db
+class Transaction(db.Model):
+    id=db.Column(db.Integer,primary_key=True)
+    currency=db.Column(db.String(5),)
+    amount=db.Column(db.Integer)
+    user=db.Column(db.String(30))
+    trans_date=db.Column(db.Date())
 
-@app.teardown_appcontext
-def close_db(error):
-    if hasattr(g,'sqlite_db'):
-        g.sqlite_db.close()
-
-class UserCurrency:
-    def __init__(self,user:str='',password:str='',list_currencies:list[str]=[]):
-        self.user=user
-        self.password=password
-        self.list_currencies=list_currencies
-    def hash_password(self):
-        """Hash a password for storing."""
-        salt = hashlib.sha256(os.urandom(60)).hexdigest().encode('ascii')
-        pwdhash = hashlib.pbkdf2_hmac('sha512', self.password.encode('utf-8'), salt, 100000)
-        pwdhash = binascii.hexlify(pwdhash)
-        return (salt + pwdhash).decode('ascii')
-
-class User:
-    def __init__(self,user='',password=''):
-        self.user=user
-        self.password=password
-        
-    def hash_password(self):
-        """Hash a password for storing."""
-        salt = hashlib.sha256(os.urandom(60)).hexdigest().encode('ascii')
-        pwdhash = hashlib.pbkdf2_hmac('sha512', self.password.encode('utf-8'), salt, 100000)
-        pwdhash = binascii.hexlify(pwdhash)
-        return (salt + pwdhash).decode('ascii')
+class User(db.Model):
+    id=db.Column(db.Integer,primary_key=True)
+    name=db.Column(db.String(100))
+    email=db.Column(db.String(100))
+    password=db.Column(db.Text)
+    is_active=db.Column(db.Boolean())
+    is_admin=db.Column(db.Boolean())
+    
+class Currency:
+    def __init__(self,code,name,flag):
+        self.code=code
+        self.name=name
+        self.flag=flag
+    def __repr__(self):
+        return f"<Currency({self.code})>"
+    
+class CantorOffer:
+    def __init__(self):
+        self.currencies=[]
+        self.denies_codes=[]
+    def load_offer(self):
+        self.currencies.append(Currency(code='USD',name='Dollar',flag='flag_usa.png'))
+        self.currencies.append(Currency(code='EUR',name='Euro',flag='flag_euro.png'))
+        self.currencies.append(Currency(code='JPY',name='Yen',flag='flag_japan.png'))
+        self.currencies.append(Currency(code='GBP',name='Pound',flag='flag_england.png'))
+        self.denies_codes.append('USD')
+    def get_by_code(self,code):
+        for currency in self.currencies:
+            if currency.code==code:
+                return currency
+        return Currency(code='unknown',name='unknown',flag='flag_pirat.png')
     
 class UserPass:
     def __init__(self,user='',password=''):
@@ -112,82 +105,56 @@ class UserPass:
         )
 
         self.password = random_password
-    def login_user(self):
-        db=get_db()#'select id, name, email, password, is_active, is_admin from users where name=?'
-        sql_statement='select id,name,email,password,is_active,is_admin from users where name=?'
-        user_record=db.execute(sql_statement,[self.user]).fetchone()
-        if user_record!=None and self.verify_password(user_record['password'],self.password):
+    def login_user(self): 
+        user_record=User.query.filter(User.name==self.user).first()
+        if user_record!=None and self.verify_password(user_record.password,self.password):
             return user_record
         else:
             self.user=None
             self.password=None
             return None
-    def get_user_info(self):
-        db=get_db()
-        sql_statement='select name,email,is_active,is_admin from users where name=?'
-        cur=db.execute(sql_statement,[self.user])
-        db_user=cur.fetchone()
+    def get_user_info(self):  
+        db_user=User.query.filter(User.name==self.user).first()
 
         if db_user is None:
             self.email=''
             self.is_valid=False
             self.is_admin=False
-        elif db_user['is_active']!=1:
-            self.email=db_user['email']
+        elif db_user.is_active!=1:
+            self.email=db_user.email
             self.is_valid=False
             self.is_admin=False        
         else:
-            self.email=db_user['email']
+            self.email=db_user.email
             self.is_valid=True
-            self.is_admin=db_user['is_admin']
-
+            self.is_admin=db_user.is_admin
+            
 @app.route('/init_app')
 def init_app():
+    db.create_all()
     # check if there are users defined
-    # (at least one active admin required)
+    # (at least one active admin required)  
+    active_admins = User.query.filter(User.is_admin,User.is_active).count()
 
-    db = get_db()
-
-    sql_statement = '''
-        SELECT count(*) AS cnt
-        FROM users
-        WHERE is_active AND is_admin;
-    '''
-
-    cur = db.execute(sql_statement)
-    active_admins = cur.fetchone()
-
-    if active_admins is not None and active_admins['cnt'] > 0:
+    if active_admins > 0:
         flash('Application is already set-up. Nothing to do')
-        return redirect(url_for('index'))
-
-    # if not - create/update admin account
-    # with a new password and admin privileges
-
+        return redirect(url_for('index')) 
+    
     user_pass = UserPass()
     user_pass.get_random_user_password()
-
-    sql_statement = '''
-        INSERT INTO users(
-            name,
-            email,
-            password,
-            is_active,
-            is_admin
-        )
-        VALUES (?, ?, ?, True, True);
-    '''
-
-    db.execute(
-        sql_statement,
-        [
-            user_pass.user,
-            'noone@nowhere.no',
-            user_pass.hash_password()
-        ]
-    )
-
-    db.commit()
+    # class User(db.Model):
+    #     id=db.Column(db.Integer,primary_key=True)
+    #     name=db.Column(db.String(100))
+    #     email=db.Column(db.String(100))
+    #     password=db.Column(db.Text)
+    #     is_active=db.Column(db.Boolean())
+    #     is_admin=db.Column(db.Boolean())
+    new_admin=User(id=1,name=user_pass.user
+                ,email='noone@nowhere.no'
+                ,password=user_pass.hash_password()
+                ,is_active=True,is_admin=True)
+    db.session.add(new_admin)
+    db.session.commit()
 
     flash(
         'User {} with password {} has been created'.format(
@@ -197,6 +164,7 @@ def init_app():
     )
 
     return redirect(url_for('index'))
+
 
 @app.route("/login",methods=["GET","POST"])
 def login():
@@ -228,15 +196,15 @@ def logout():
         session.pop("user",None)
         flash("Succesfully log out")
     return redirect(url_for("login"))
-    
+
 @app.route("/")
 def index():
     login=UserPass(session.get('user'))
     login.get_user_info()
 
     return render_template("index.html",time_now=datetime.now()
-                           ,author=f"@{Author()}",active_menu='home',login=login)
-
+                           ,author="@BARTEK_N",active_menu='home',login=login)
+    
 @app.route("/exchange",methods=["GET","POST"])
 def exchange():
     offer=CantorOffer()
@@ -265,11 +233,21 @@ def exchange():
             flash(f"Selected currency: {currency} can not be accepted")
         elif offer.get_by_code(currency)=='unknown':
             flash(f"Selected currency: {currency} is unknown and can not be accepted")
-        else:
-            db=get_db()
-            sql_command="insert into transactions(currency,amount,user) values(?,?,?)"
-            db.execute(sql_command,[currency,amount,'admin'])
-            db.commit()
+        else: 
+            # class Transaction(db.Model):
+            #     id=db.Column(db.Integer,primary_key=True)
+            #     currency=db.Column(db.String(5),)
+            #     amount=db.Column(db.Integer)
+            #     user=db.Column(db.String(30))
+            #     trans_date=db.Column(db.Date())
+            new_transaction=Transaction(currency=currency
+                                        ,amount=amount
+                                        ,user=session['user']
+                                        ,trans_date=datetime.utcnow().date()
+                                        #,trans_date=datetime.utcnow()
+                                        )
+            db.session.add(new_transaction)
+            db.session.commit()
             print(currency,amount)
             flash(f"Request to exchange {currency} was accepted")        
         
@@ -280,6 +258,7 @@ def exchange():
                             ,amount=amount
                             ,currency_info=offer.get_by_code(currency)
                             ,login=login)
+
 @app.route("/columns_grid")
 def columns_grid():
     return render_template("columns.html")
@@ -289,10 +268,8 @@ def history():
     login.get_user_info()
     if not login.is_valid:
         return redirect(url_for('login'))
-    db=get_db()
-    query="select *from transactions"
-    cur=db.execute(query)
-    transactions=cur.fetchall()
+ 
+    transactions=Transaction.query.all()
     return render_template("history.html",active='history',transactions=transactions,login=login)
 
 @app.route("/delete_transaction/<int:transaction_id>")
@@ -300,11 +277,11 @@ def delete_transaction(transaction_id:int):
     login=UserPass(session.get('user'))
     login.get_user_info()
     if not login.is_valid:
-        return redirect(url_for('login'))
-    db=get_db()
-    sql_statement="delete from transactions where id=?"
-    db.execute(sql_statement,[transaction_id])
-    db.commit()
+        return redirect(url_for('login')) 
+    
+    transaction_to_delete=Transaction.query.filter(Transaction.id==transaction_id).first()
+    db.session.delete(transaction_to_delete)
+    db.session.commit()
 
     return redirect(url_for('history'))
 
@@ -316,21 +293,19 @@ def edit_transaction(transaction_id:int):
     if not login.is_valid:
         return redirect(url_for('login')) 
     offer=CantorOffer()
-    offer.load_offer()
-    db=get_db()
+    offer.load_offer() 
+    
     if request.method=="GET":
-        sql_statement="select id,currency,amount from transactions where id=?;"
-        transaction=db.execute(sql_statement,[transaction_id]).fetchone()
-        if transaction is None:
+        transaction_to_edit=Transaction.query.filter(Transaction.id==transaction_id).first()
+        if transaction_to_edit is None:
             flash(f"Transaction id={transaction_id} no founded at database")
             return redirect(url_for('history'))
         else:
             return render_template('edit_transaction.html'
-                                ,transaction=transaction
+                                ,transaction=transaction_to_edit
                                 ,offer=offer
                                 ,active_menu='history'
-                                ,login=login)
-        # return render_template("exchange.html",offer=offer)
+                                ,login=login) 
     else:
         flash("LOAD OFFER")
         flash("Debug starting exchange in POST mode")
@@ -349,18 +324,16 @@ def edit_transaction(transaction_id:int):
         elif offer.get_by_code(currency)=='unknown':
             flash(f"Selected currency: {currency} is unknown and can not be accepted")
         else:
-            sql_command="update transactions\
-                set currency=?\
-                ,amount=? \
-                ,user=? \
-                ,trans_date=?\
-                where id=?"
-            db.execute(sql_command,[currency,amount,'admin',datetime.utcnow(),transaction_id])
-            db.commit()
+        
             print(currency,amount)
-            flash("Transaction was updated")        
+            flash("Transaction was updated")     
+        transaction_to_edit.currency=currency
+        transaction_to_edit.amount=amount
+        transaction_to_edit.user=session['login']
+        transaction_to_edit.trans_date=datetime.utcnow().date()
+        db.session.commit()   
         return redirect(url_for('history'))
-
+    
 @app.route("/users")
 def users():
     login=UserPass(session.get('user'))
@@ -371,17 +344,8 @@ def users():
         if not login.is_admin:
             flash('Please,log as admin')
             return redirect(url_for('login'))
-    db=get_db()
-    sql_statement='select id,name,email,is_active,is_admin from users'
-    responses=db.execute(sql_statement).fetchall()
-    for response in responses:
-        print(f"User id: {response['id']}")
-        print(f"User name: {response['name']}")
-        print(f"User email: {response['email']}")
-        print(f"User is_active: {response['is_active']}")
-        print(f"User is_admin: {response['is_admin']}")
-        print('-'*30)
-    users=db.execute(sql_statement).fetchall()
+    
+    users=User.query.all()
     return render_template('users.html',active_menu='users',users=users,login=login)  
 
 @app.route("/user_status_change/<action>/<user_name>")
@@ -390,20 +354,26 @@ def user_status_change(action,user_name):
     login.get_user_info()
     if not login.is_admin and not login.is_valid:
         flash("Please, log as admin")
-        return redirect(url_for('login'))
-    db=get_db()
+        return redirect(url_for('login')) 
+    active_user=User.query.filter(User.name==login).first()
     if action=='active':
-        db.execute('update users set is_active=(is_active+1)%2 where name=? and name<>?'
-                   ,[user_name,login.user])
-        print("change user status")
-        flash("change user status")
-        db.commit()
+        # db.execute('update users set is_active=(is_active+1)%2 where name=? and name<>?'
+        #            ,[user_name,login.user])
+        if active_user.name==user_name and active_user.name!=login.user:
+            active_user.is_active=(active_user.is_active+1)%2
+            db.session.commit()
+            print("change user status")
+            flash("change user status") 
+        print('no changes')
     elif action=='admin':
-        print("Change admin status")
-        flash("Change admin status")
-        db.execute('update users set is_admin=(is_admin + 1) % 2 where name=? and name<>?'
-                   ,[user_name,login.user])
-        db.commit()
+        if active_user.name==user_name and active_user.name!=login.user:
+            active_user.is_active=(active_user.is_admin+1)%2
+            db.session.commit()
+            print("Change admin status")
+            flash("Change admin status")
+        # db.execute('update users set is_admin=(is_admin + 1) % 2 where name=? and name<>?'
+        #            ,[user_name,login.user])
+        print('no changes')
     return redirect(url_for('users'))
 
 @app.route("/edit_user/<user_name>",methods=["GET","POST"])
@@ -412,10 +382,8 @@ def edit_user(user_name):
     login.get_user_info()
     if not login.is_admin and not login.is_valid:
         flash("Please, log as admin")
-        return redirect(url_for('login'))
-    db=get_db()
-    cur=db.execute('select name,email from users where name=?',[user_name])
-    user=cur.fetchone()
+        return redirect(url_for('login')) 
+    user=User.query.filter(User.name==user_name).first()
     message=None
     if user is None:
         flash(f"no such user: {user_name}")
@@ -426,54 +394,31 @@ def edit_user(user_name):
         new_email='' if not 'email' in request.form else request.form['email']
         new_password='' if not 'user_pass' in request.form else request.form['user_pass']
 
-        if new_email!=user['email']:
-            db.execute('update users set email=? where name=?',[new_email,user_name])
-            db.commit()
+        if new_email!=user.email:
+            # db.execute('update users set email=? where name=?',[new_email,user_name])
+            user.email=new_email
+            db.session.commit()
             flash(f'Changing email to {new_email}')
         if new_password!='':
             userPass=UserPass(user=user_name,password=new_password)
-            db.execute('update users set password=? where name=?'
-                    ,[userPass.hash_password(),user_name])
-            db.commit()
-            flash('Password has been changed')
-        
-        # name_unique=db.execute('select count(*) as cnt from users where name=?'
-        #                        ,[user_name]).fetchone()==0
-        # email_unique=db.execute('select count(*) as cnt from users where email=?',
-        #                         [email]).fetchone()==0
-
-        # if name=='':
-        #     message='field name is empty'
-        # if email=='':
-        #     message='field email is empty'
-        # if user_name==login:
-        #     message=f'Can not change name to already logged in user: {user_name}'
-        # if not name_unique:
-        #     message=f'users name: {user_name} is not unique'
-        # if not email_unique:
-        #     message=f'users email: {email} is not unique'
-        # if message is None:
-        #     id_user=db.execute('select id from users where name=?',[user_name]).fetchone()
-        #     sql_command='update users set name=?,email=? where id=?'
-        #     db.execute(sql_command,[user_name,email,id_user])
-        #     db.commit()
-
-        #     return redirect(url_for('users'))
-        # else:
-        #     flash(message=message)
-        #     return redirect(url_for('users'))
+            # db.execute('update users set password=? where name=?'
+            #         ,[userPass.hash_password(),user_name])
+            user.password=new_password
+            db.session.commit()
+            flash('Password has been changed') 
         return redirect(url_for('users'))
+    
 @app.route("/delete_user/<user_name>")
 def delete_user(user_name):
     login=UserPass(session.get("user"))
     if not login.is_admin and not login.is_valid:
         flash("Please, log as admin")
-        return redirect(url_for('login'))
-    db=get_db()
+        return redirect(url_for('login')) 
 
     is_admin=False
-    record=db.execute('select *from users where name=?',[user_name]).fetchone()
-    if record['is_admin']==1:
+    # record=db.execute('select *from users where name=?',[user_name]).fetchone()
+    record=User.filter.query(User.name==user_name).first()
+    if record.is_admin==1:
         flash(f'Can not to remove admin user {user_name}')
         return redirect(url_for("users"))
     else:
@@ -481,9 +426,8 @@ def delete_user(user_name):
             flash(f'Can not to remove actually logged in user: {login}')
             return redirect(url_for("users"))
         else:
-            sql_command="delete from users where name=? and name<>?"
-            db.execute(sql_command,[user_name,login])
-            db.commit()
+            db.session.delete(record)
+            db.session.commit()
         return redirect(url_for("users"))
     
 @app.route("/new_user",methods=["GET","POST"])
@@ -492,8 +436,7 @@ def new_user():
     login.get_user_info()
     if not login.is_admin and not login.is_valid:
         flash("Please, log as admin")
-        return redirect(url_for('login'))
-    db=get_db()
+        return redirect(url_for('login')) 
     message=None
     user={}
     if request.method=='GET':
@@ -503,13 +446,17 @@ def new_user():
         user['email']='' if 'email' not in request.form else request.form['email']
         user['user_pass']='' if 'user_pass' not in request.form else request.form['user_pass']
         
-        sql_statement='select count(*) as cnt from users where user=?'
-        record=db.execute('select count(*) as cnt from users where name=?',[user['user_name']]).fetchone()
-        is_user_name_unique=(record['cnt']==0)
+        # sql_statement='select count(*) as cnt from users where user=?'
+        # record=db.execute('select count(*) as cnt from users where name=?',[user['user_name']]).fetchone()
+        # is_user_name_unique=(record['cnt']==0)
         
-        sql_statement='select count(*) as cnt from users where email=?'
-        record=db.execute('select count(*) as cnt from users where email=?',[user['email']]).fetchone()
-        is_user_email_unique=(record['cnt']==0)
+        record=User.query.filter(User.name==user['user_name']).count()
+        is_user_name_unique=(record==0)
+        
+        # sql_statement='select count(*) as cnt from users where email=?'
+        # record=db.execute('select count(*) as cnt from users where email=?',[user['email']]).fetchone()
+        record=User.query.filter(User.email==user['email']).count()
+        is_user_email_unique=(record==0)
         
         is_correct=False
         if user['user_name']=='':
@@ -528,10 +475,17 @@ def new_user():
         if is_correct:
             user_pass=UserPass(user=user['user_name'],password=user['user_pass'])
             password_hash=user_pass.hash_password()
-            sql_command="insert into users (name,email,password,is_active,is_admin) \
-                values(?,?,?,True,False)"
-            db.execute(sql_command,[user['user_name'],user['email'],password_hash])
-            db.commit()
+            # sql_command="insert into users (name,email,password,is_active,is_admin) \
+            #     values(?,?,?,True,False)"
+            # db.execute(sql_command,[user['user_name'],user['email'],password_hash])
+            # db.commit()
+            new_user=User(name=user['user_name']
+                        ,email=user['email']
+                        ,password=password_hash
+                        ,is_active=True
+                        ,is_admin=False)
+            db.session.add(new_user)
+            db.session.commit()
             flash(f"User: {user['user_name']} has been created")
             return redirect(url_for('users'))
         else:
