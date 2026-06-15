@@ -1,0 +1,8 @@
+<form method="POST" action="{{url_for('index')}}">
+    {{form.csrf_token}}
+    {{form.Train_number.label}} {{form.Train_number}}<br>
+    {{form.Is_delayed.label}}   {{form.Is_delayed}}<br>
+    {{form.Delay_minutes.label}}    {{form.Delay_minutes}}<br>
+    {{form.Delay_reason.label}} {{form.Delay_reason}}<br>
+    <input type="submit" value="GO!">
+</form>

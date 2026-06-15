@@ -5,3 +5,4 @@ psycopg2
 numpy
 pandas
 flask-bootstrap
+flask-wtf

@@ -1,0 +1,7 @@
+<form method="POST" action="{{url_for('user_registration')}}">
+    {{form.csrf_token}}
+    {{form.login.label}}    {{form.login}}<br>
+    {{form.password.label}}     {{form.password}}<br>
+    {{form.email.label}}    {{form.email}}<br>
+    {{form.age.label}}      {{form.age}}<br>
+</form>

@@ -1,0 +1,7 @@
+<form method="POST" action="{{url_for('index')}}">
+    {{form.csrf_token}}
+    {{form.title.label}}    {{form.title}}<br>
+    {{form.amount.label}}   {{form.amount}}<br>
+    {{form.available.label}}    {{form.available}}<br>
+    <input type='submit' value='send'>
+</form>
